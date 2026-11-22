@@ -1,0 +1,62 @@
+name: Copy radyo10.com
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/crawl.yml', 'scripts/**']
+permissions:
+  contents: write
+concurrency:
+  group: crawl
+  cancel-in-progress: false
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      START_URLS: >-
+        https://radyo10.com/
+        https://radyo10.com/feed/
+        https://radyo10.com/robots.txt
+      DOMAINS: radyo10.com,www.radyo10.com
+      HOSTS: radyo10.com,www.radyo10.com
+      ORIGIN: https://radyo10.com
+      KEEP_FEEDS: /feed/
+      SEARCH_SITE: radyo10.com
+      HEADERS: |
+        /feed/
+          Content-Type: application/rss+xml; charset=UTF-8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the old server answers
+        run: curl -sS -o /dev/null -w "homepage HTTP %{http_code}, %{size_download} bytes\n" -A "Mozilla/5.0 site-owner-archive" https://radyo10.com/
+      - name: Is the radio stream still broadcasting?
+        run: |
+          for u in http://sunucu2.radyosfer.com:9362/stream https://sunucu2.radyosfer.com:9362/stream; do
+            echo "== $u"; curl -sS -m 8 -o /dev/null -D - "$u" 2>&1 | head -12 || true
+          done
+      - name: Mirror the site
+        run: bash scripts/crawl.sh
+      - name: Keep the site's own "page not found" page
+        run: |
+          mkdir -p crawl/radyo10.com
+          curl -sS -A "Mozilla/5.0 site-owner-archive" -o crawl/radyo10.com/404.html https://radyo10.com/bu-sayfa-yok-404/ || true
+      - name: Turn the mirror into a static site
+        run: python3 scripts/postprocess.py
+      - name: Keep the radio player working
+        run: python3 scripts/radyo10_extras.py
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawl-logs
+          path: |
+            crawl.log
+            crawl-report.md
+      - name: Commit the site
+        run: |
+          git config user.name "archive-bot"
+          git config user.email "archive-bot@users.noreply.github.com"
+          git add site crawl-report.md
+          git commit -q -m "Static copy of radyo10.com ($(date -u +%Y-%m-%d))" || echo "nothing new to commit"
+          git push
