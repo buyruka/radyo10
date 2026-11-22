@@ -16,6 +16,15 @@ for i in sorted(ids):
     txt = raw.replace('https:\\/\\/radyo10.com\\/', '\\/').replace('https://radyo10.com/', '/')
     (OUT / f'audioigniter-playlist-{i}.json').write_text(txt, 'utf-8')
     print(f'playlist {i}:', [(t.get('title'), t.get('audio')) for t in tracks])
+    # the player loads cover images from this list, so they never appear in the HTML: fetch them too
+    for t in tracks:
+        cover = (t.get('cover') or '').replace('https://radyo10.com', '')
+        if cover.startswith('/') and not (OUT / cover.lstrip('/')).exists():
+            req = urllib.request.Request('https://radyo10.com' + cover, headers={'User-Agent': UA})
+            dest = OUT / cover.lstrip('/')
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(urllib.request.urlopen(req, timeout=60).read())
+            print('saved cover image', cover)
 for p in OUT.rglob('*.html'):
     t = p.read_text('utf-8', errors='surrogateescape')
     n = PAT.sub(r'data-tracks-url="/audioigniter-playlist-\1.json"', t)
