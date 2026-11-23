@@ -1,0 +1,68 @@
+name: Check the live domains
+# Read-only health check of all the migrated domains. Run it by hand from the Actions tab.
+# It asks Cloudflare's own nameservers for each address, so stale DNS caches don't hide changes.
+on: workflow_dispatch
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Web addresses
+        run: |
+          check() {
+            url="$1"
+            host=$(printf '%s' "$url" | sed -E 's#^https?://([^/:]+).*#\1#')
+            port=443; case "$url" in http://*) port=80;; esac
+            ip=$(dig +short @buck.ns.cloudflare.com "$host" A | grep -E '^[0-9.]+$' | head -1)
+            res=$(curl -sS -o /dev/null --max-time 25 --resolve "$host:$port:$ip" \
+                  -w '%{http_code} %{redirect_url} | %{content_type}' "$url" 2>&1)
+            srv=$(curl -sS -o /dev/null -D - --max-time 25 --resolve "$host:$port:$ip" "$url" 2>/dev/null \
+                  | tr -d '\r' | grep -i '^server:' | head -1 | cut -d' ' -f2-)
+            printf '%-58s %-15s %s | server=%s\n' "$url" "$ip" "$res" "$srv"
+          }
+          for u in \
+            https://radyo10.com/ \
+            "http://www.radyo10.com/index.php/hakkimizda/?a=1" \
+            https://buyruk.net/ \
+            https://buyruk.net/blog/ \
+            https://buyruk.net/blog/feed/ \
+            https://buyruk.net/makaleler/ \
+            https://buyruk.net/files/ \
+            https://buyruk.net/foto/ \
+            http://buyruk.net/blog/ \
+            "http://www.buyruk.net/makaleler/?q=1" \
+            https://www.buyruk.net/blog/ \
+            http://blog.buyruk.net/ \
+            "https://blog.buyruk.net/2010/?x=1" \
+            http://makaleler.buyruk.net/ \
+            https://www.bisikletsporu.com/ \
+            https://www.bisikletsporu.com/feed/ \
+            https://www.bisikletsporu.com/category/podcast/feed/ \
+            "http://bisikletsporu.com/2013-takim-formalari/?x=1" \
+            https://bisikletsporu.com/feed/ \
+            https://www.bisikletsporu.com/feed/podcast/ \
+            https://www.bisikletsporu.com/dosyalar/podcast/Bisiklet-Sporu-Bolum-33.mp3 \
+            "http://buyruk.com/x?y=1" \
+            https://buyruk.com/ \
+            https://www.buyruk.com/abc \
+            http://alparslan.org/ \
+            https://alparslan.org/abc \
+            https://www.alparslan.org/ \
+            http://cyclinglibrary.com/ \
+            http://simsek.co/ \
+            ; do check "$u"; done
+
+      - name: DNS records
+        run: |
+          for d in radyo10.com buyruk.net bisikletsporu.com buyruk.com alparslan.org cyclinglibrary.com simsek.co; do
+            echo "== $d"
+            echo "  NS via 8.8.8.8: $(dig +short @8.8.8.8 "$d" NS | sort | tr '\n' ' ')"
+            echo "  NS via 1.1.1.1: $(dig +short @1.1.1.1 "$d" NS | sort | tr '\n' ' ')"
+            for t in A MX TXT; do
+              echo "  $t: $(dig +short @buck.ns.cloudflare.com "$d" "$t" | sort | tr '\n' ' ' | cut -c1-300)"
+            done
+          done
+          echo "== extra"
+          echo "  mail.buyruk.net A: $(dig +short @buck.ns.cloudflare.com mail.buyruk.net A)"
+          echo "  cf2024-1._domainkey.buyruk.net: $(dig +short @buck.ns.cloudflare.com cf2024-1._domainkey.buyruk.net TXT | cut -c1-50)..."
+          echo "  kigwg4ugftgt.cyclinglibrary.com: $(dig +short @buck.ns.cloudflare.com kigwg4ugftgt.cyclinglibrary.com CNAME)"
