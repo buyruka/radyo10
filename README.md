@@ -1,6 +1,6 @@
 # radyo10.com - Balıkesir Radyo 10
 
-**Since 24 November 2026 radyo10.com forwards to https://radyoon.net/** (see `site/_redirects`).
+**Since 24 November 2026 radyo10.com permanently (301) forwards to https://radyoon.net/** (see `site/_redirects`).
 The old site below is kept untouched for a rollback: delete `site/_redirects` and it is live again
 about a minute later. A frozen copy is also on the `2026-11-24-before-redirect` branch.
 

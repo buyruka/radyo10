@@ -1,5 +1,5 @@
 # Since 24 Nov 2026 radyo10.com is not a standalone site: every address forwards to radyoon.net.
-# 302 = temporary, so browsers don't remember it and a rollback works straight away.
-# To bring the old site back, delete this file (the full old site is still in this folder,
+# 301 = permanent (switched from a temporary 302 on 24 Nov 2026 at the owner's request).
+# To bring the old site back, delete this file (repeat visitors may need to clear their browser cache);
 # and also on the 2026-11-24-before-redirect branch).
-/* https://radyoon.net/ 302
+/* https://radyoon.net/ 301
