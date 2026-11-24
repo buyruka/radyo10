@@ -13,7 +13,8 @@ jobs:
             url="$1"
             host=$(printf '%s' "$url" | sed -E 's#^https?://([^/:]+).*#\1#')
             port=443; case "$url" in http://*) port=80;; esac
-            ip=$(dig +short @buck.ns.cloudflare.com "$host" A | grep -E '^[0-9.]+$' | head -1)
+            ip=$(dig +short @buck.ns.cloudflare.com "$host" A | grep -E '^[0-9.]+$' | head -1 || true)
+            if [ -z "$ip" ]; then printf '%-58s %s\n' "$url" "no website (no web address record; expected for email-only domains)"; return 0; fi
             res=$(curl -sS -o /dev/null --max-time 25 --resolve "$host:$port:$ip" \
                   -w '%{http_code} %{redirect_url} | %{content_type}' "$url" 2>&1)
             srv=$(curl -sS -o /dev/null -D - --max-time 25 --resolve "$host:$port:$ip" "$url" 2>/dev/null \
